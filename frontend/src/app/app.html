@@ -1,0 +1,392 @@
+<!-- Three.js Background Canvas -->
+<canvas #threeCanvas class="three-canvas"></canvas>
+
+<!-- Main Content -->
+<div class="app-wrapper">
+
+  <!-- Top Bar -->
+  <nav class="top-bar">
+    <div class="top-bar-brand">
+      <span class="brand-gs">GS</span>
+      <span class="brand-divider"></span>
+      <span class="brand-text">Mutual Fund Calculator</span>
+    </div>
+    <div class="top-bar-badge">
+      <span class="badge-dot"></span>
+      <span>CAPM Model</span>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <h1 class="hero-title">
+      Future Value
+      <span class="hero-highlight">Calculator</span>
+    </h1>
+    <p class="hero-subtitle">Predict your mutual fund investment returns using the Capital Asset Pricing Model</p>
+  </header>
+
+  <!-- Calculator Section -->
+  <main class="main-content">
+
+    <!-- Input Card -->
+    <section class="glass-card input-card">
+      <div class="card-header">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <h2 class="card-title">Investment Parameters</h2>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="mutual-fund" class="field-label">Select Investment</label>
+          <div class="select-wrapper">
+            <select id="mutual-fund" [(ngModel)]="selectedFund" class="field-input field-select">
+              <option *ngFor="let fund of mutualFunds" [ngValue]="fund">
+                [{{ fund.type === 'ETF' ? 'ETF' : 'MF' }}] {{ fund.ticker }} — {{ fund.name }}
+              </option>
+            </select>
+            <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+          <span class="field-hint" *ngIf="selectedFund">
+            <span class="type-badge" [class.type-etf]="selectedFund.type === 'ETF'">{{ selectedFund.type }}</span>
+            {{ selectedFund.category }}
+          </span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="principal" class="field-label">Initial Investment ($)</label>
+            <input type="text" id="principal" [value]="formatNumber(principal)"
+                   (input)="onPrincipalInput($event)"
+                   class="field-input" placeholder="10,000">
+          </div>
+
+          <div class="form-field">
+            <label for="years" class="field-label">Time Horizon (Years)</label>
+            <input type="number" id="years" [(ngModel)]="years"
+                   class="field-input" placeholder="10" min="1" max="50">
+          </div>
+        </div>
+
+        <button class="btn-calculate" (click)="calculateFutureValue()" [disabled]="isCalculating">
+          <span *ngIf="!isCalculating">Calculate Future Value</span>
+          <span *ngIf="isCalculating" class="btn-loading">
+            <span class="spinner"></span>
+            Calculating...
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Results Card -->
+    <section class="glass-card result-card" *ngIf="investmentResult">
+      <div class="card-header">
+        <svg class="card-icon icon-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>
+        </svg>
+        <h2 class="card-title">Predicted Future Value</h2>
+      </div>
+
+      <div class="result-hero">
+        <span class="result-currency">$</span>
+        <span class="result-value">{{ investmentResult.futureValue | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="result-growth">
+        <span class="growth-label">Total Growth</span>
+        <span class="growth-value">+{{ ((investmentResult.futureValue - investmentResult.principal) / investmentResult.principal * 100) | number:'1.1-1' }}%</span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <span class="metric-label">Ticker</span>
+          <span class="metric-value mono">{{ investmentResult.ticker }}</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Principal</span>
+          <span class="metric-value mono">{{ investmentResult.principal | currency:'USD':'symbol':'1.0-0' }}</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Duration</span>
+          <span class="metric-value mono">{{ investmentResult.timeYears }}Y</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Risk-Free Rate</span>
+          <span class="metric-value mono">{{ investmentResult.riskFreeRate * 100 | number:'1.2-2' }}%</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Beta</span>
+          <span class="metric-value mono">{{ investmentResult.beta | number:'1.4-4' }}</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Market Return</span>
+          <span class="metric-value mono">{{ investmentResult.expectedReturn * 100 | number:'1.2-2' }}%</span>
+        </div>
+        <div class="metric-item metric-highlight">
+          <span class="metric-label">CAPM Rate</span>
+          <span class="metric-value mono gold">{{ investmentResult.calculatedRate * 100 | number:'1.2-2' }}%</span>
+        </div>
+        <div class="metric-item metric-highlight">
+          <span class="metric-label">Future Value</span>
+          <span class="metric-value mono gold">{{ investmentResult.futureValue | currency }}</span>
+        </div>
+      </div>
+
+      <div class="formula-bar">
+        <span class="formula-label">CAPM</span>
+        <code class="formula-code">r = {{ investmentResult.riskFreeRate * 100 | number:'1.2-2' }}% + {{ investmentResult.beta | number:'1.2-2' }} &times; ({{ investmentResult.expectedReturn * 100 | number:'1.2-2' }}% - {{ investmentResult.riskFreeRate * 100 | number:'1.2-2' }}%) = {{ investmentResult.calculatedRate * 100 | number:'1.2-2' }}%</code>
+      </div>
+
+      <!-- Invest Now — Brokerage Links -->
+      <div class="invest-section">
+        <span class="invest-label">Ready to invest in {{ investmentResult.ticker }}?</span>
+        <div class="invest-links">
+          <a class="invest-btn" [href]="'https://robinhood.com/stocks/' + investmentResult.ticker" target="_blank" rel="noopener">
+            <span class="invest-btn-name">Robinhood</span>
+          </a>
+          <a class="invest-btn" [href]="'https://www.fidelity.com/fund-screener/evaluator.shtml#/ticker/' + investmentResult.ticker" target="_blank" rel="noopener">
+            <span class="invest-btn-name">Fidelity</span>
+          </a>
+          <a class="invest-btn" [href]="'https://www.schwab.com/research/mutual-funds/quotes/summary/' + investmentResult.ticker" target="_blank" rel="noopener">
+            <span class="invest-btn-name">Schwab</span>
+          </a>
+          <a class="invest-btn" [href]="'https://investor.vanguard.com/investment-products/mutual-funds/profile/' + investmentResult.ticker" target="_blank" rel="noopener">
+            <span class="invest-btn-name">Vanguard</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ AI FEATURES PANEL ═══════════ -->
+    <section class="glass-card ai-panel">
+      <div class="card-header">
+        <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
+        </svg>
+        <h2 class="card-title">AI-Powered Insights</h2>
+        <span class="ai-badge">GPT-4o</span>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="ai-tabs">
+        <button class="ai-tab" [class.active]="activeAiTab === 'portfolio'" (click)="activeAiTab = 'portfolio'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+          <span>Portfolio</span>
+        </button>
+        <button class="ai-tab" [class.active]="activeAiTab === 'advisor'" (click)="activeAiTab = 'advisor'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Advisor</span>
+        </button>
+        <button class="ai-tab" [class.active]="activeAiTab === 'analysis'" (click)="activeAiTab = 'analysis'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+          <span>Risk</span>
+        </button>
+        <button class="ai-tab" [class.active]="activeAiTab === 'compare'" (click)="activeAiTab = 'compare'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Compare</span>
+        </button>
+      </div>
+
+      <!-- Tab: Portfolio Optimizer -->
+      <div class="ai-tab-content" *ngIf="activeAiTab === 'portfolio'">
+        <p class="ai-description">Enter an investment amount and risk tolerance to get an AI-optimized portfolio allocation across all available mutual funds.</p>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="field-label">Investment Amount ($)</label>
+            <input type="text" [value]="formatNumber(portfolioAmount)"
+                   (input)="onPortfolioAmountInput($event)"
+                   class="field-input" placeholder="50,000">
+          </div>
+          <div class="form-field">
+            <label class="field-label">Risk Tolerance</label>
+            <div class="select-wrapper">
+              <select [(ngModel)]="portfolioRisk" class="field-input field-select">
+                <option value="conservative">Conservative</option>
+                <option value="moderate">Moderate</option>
+                <option value="aggressive">Aggressive</option>
+              </select>
+              <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
+        </div>
+        <button class="btn-ai" (click)="generatePortfolio()" [disabled]="aiLoading">
+          <span *ngIf="!aiLoading">Generate Portfolio</span>
+          <span *ngIf="aiLoading" class="btn-loading"><span class="spinner"></span> Generating...</span>
+        </button>
+        <!-- Skeleton loader -->
+        <div class="ai-skeleton" *ngIf="aiLoading && !portfolioResult">
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+        </div>
+        <!-- Result: Section Cards -->
+        <div class="ai-sections" *ngIf="portfolioResult">
+          <!-- If parseable into sections -->
+          <ng-container *ngIf="parseSections(portfolioResult).length > 0">
+            <div class="ai-section-card" *ngFor="let section of parseSections(portfolioResult); let i = index" [style.animation-delay]="i * 0.08 + 's'">
+              <div class="ai-section-header">
+                <span class="ai-section-number">{{ i + 1 }}</span>
+                <span class="ai-section-title">{{ section.title }}</span>
+              </div>
+              <div class="ai-section-body" [innerHTML]="renderMarkdown(section.body)"></div>
+            </div>
+          </ng-container>
+          <!-- Fallback: single card -->
+          <div class="ai-result-card" *ngIf="parseSections(portfolioResult).length === 0">
+            <div class="ai-result-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+              <span>Portfolio Recommendation</span>
+            </div>
+            <div class="ai-result-body" [innerHTML]="renderMarkdown(portfolioResult)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: AI Advisor Chat -->
+      <div class="ai-tab-content" *ngIf="activeAiTab === 'advisor'">
+        <div class="chat-container">
+          <!-- Empty state -->
+          <div class="chat-empty" *ngIf="chatMessages.length === 0 && !aiLoading">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <p>Ask the GS AI Advisor anything about mutual funds, CAPM, risk, or portfolio strategy.</p>
+          </div>
+          <!-- Messages -->
+          <div class="chat-messages" *ngIf="chatMessages.length > 0">
+            <div *ngFor="let msg of chatMessages" class="chat-bubble" [class.chat-user]="msg.role === 'user'" [class.chat-ai]="msg.role === 'ai'">
+              <div class="chat-avatar" *ngIf="msg.role === 'ai'">GS</div>
+              <div class="chat-avatar chat-avatar-user" *ngIf="msg.role === 'user'">You</div>
+              <div class="chat-body">
+                <span class="chat-role">{{ msg.role === 'user' ? 'You' : 'GS AI Advisor' }}</span>
+                <div class="chat-text" *ngIf="msg.role === 'user'">{{ msg.content }}</div>
+                <div class="chat-text" *ngIf="msg.role === 'ai'" [innerHTML]="renderMarkdown(msg.content)"></div>
+              </div>
+            </div>
+            <!-- Typing indicator -->
+            <div class="chat-bubble chat-ai" *ngIf="aiLoading">
+              <div class="chat-avatar">GS</div>
+              <div class="chat-body">
+                <span class="chat-role">GS AI Advisor</span>
+                <div class="typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" [(ngModel)]="chatInput" class="field-input chat-field"
+                 placeholder="Ask about mutual funds, CAPM, risk..."
+                 (keydown.enter)="sendChatMessage()">
+          <button class="btn-ai btn-send" (click)="sendChatMessage()" [disabled]="aiLoading || !chatInput.trim()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab: Risk Analysis -->
+      <div class="ai-tab-content" *ngIf="activeAiTab === 'analysis'">
+        <p class="ai-description">Get an AI-powered risk analysis of your most recent CAPM calculation.</p>
+        <button class="btn-ai" (click)="analyzeRisk()" [disabled]="aiLoading || !investmentResult">
+          <span *ngIf="!aiLoading">Analyze Investment Risk</span>
+          <span *ngIf="aiLoading" class="btn-loading"><span class="spinner"></span> Analyzing...</span>
+        </button>
+        <p class="ai-hint" *ngIf="!investmentResult">Run a calculation first to enable risk analysis.</p>
+        <!-- Skeleton -->
+        <div class="ai-skeleton" *ngIf="aiLoading && !analysisResult">
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+        <!-- Result: Section Cards -->
+        <div class="ai-sections" *ngIf="analysisResult">
+          <ng-container *ngIf="parseSections(analysisResult).length > 0">
+            <div class="ai-section-card" *ngFor="let section of parseSections(analysisResult); let i = index" [style.animation-delay]="i * 0.08 + 's'">
+              <div class="ai-section-header">
+                <span class="ai-section-number">{{ i + 1 }}</span>
+                <span class="ai-section-title">{{ section.title }}</span>
+              </div>
+              <div class="ai-section-body" [innerHTML]="renderMarkdown(section.body)"></div>
+            </div>
+          </ng-container>
+          <div class="ai-result-card" *ngIf="parseSections(analysisResult).length === 0">
+            <div class="ai-result-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+              <span>Risk Analysis</span>
+            </div>
+            <div class="ai-result-body" [innerHTML]="renderMarkdown(analysisResult)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Fund Compare -->
+      <div class="ai-tab-content" *ngIf="activeAiTab === 'compare'">
+        <p class="ai-description">Select 2-4 mutual funds to get an AI-powered side-by-side comparison.</p>
+        <div class="compare-grid">
+          <label *ngFor="let fund of mutualFunds" class="compare-chip"
+                 [class.selected]="compareTickers.includes(fund.ticker)">
+            <input type="checkbox" [checked]="compareTickers.includes(fund.ticker)"
+                   (change)="toggleCompareFund(fund.ticker)">
+            <span>{{ fund.ticker }}</span>
+          </label>
+        </div>
+        <button class="btn-ai" (click)="compareFunds()" [disabled]="aiLoading || compareTickers.length < 2">
+          <span *ngIf="!aiLoading">Compare {{ compareTickers.length }} Funds</span>
+          <span *ngIf="aiLoading" class="btn-loading"><span class="spinner"></span> Comparing...</span>
+        </button>
+        <p class="ai-hint" *ngIf="compareTickers.length < 2">Select at least 2 funds to compare.</p>
+        <!-- Skeleton -->
+        <div class="ai-skeleton" *ngIf="aiLoading && !compareResult">
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line wide"></div>
+        </div>
+        <!-- Result: Section Cards -->
+        <div class="ai-sections" *ngIf="compareResult">
+          <ng-container *ngIf="parseSections(compareResult).length > 0">
+            <div class="ai-section-card" *ngFor="let section of parseSections(compareResult); let i = index" [style.animation-delay]="i * 0.08 + 's'">
+              <div class="ai-section-header">
+                <span class="ai-section-number">{{ i + 1 }}</span>
+                <span class="ai-section-title">{{ section.title }}</span>
+              </div>
+              <div class="ai-section-body" [innerHTML]="renderMarkdown(section.body)"></div>
+            </div>
+          </ng-container>
+          <div class="ai-result-card" *ngIf="parseSections(compareResult).length === 0">
+            <div class="ai-result-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span>Fund Comparison</span>
+            </div>
+            <div class="ai-result-body" [innerHTML]="renderMarkdown(compareResult)"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Error Toast -->
+  <div class="error-toast" *ngIf="errorMessage" (click)="errorMessage = ''">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span>Goldman Sachs ELS Hackathon 2025</span>
+    <span class="footer-dot"></span>
+    <span>Built with Angular + Spring Boot + Three.js</span>
+  </footer>
+
+</div>
