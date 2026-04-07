@@ -51,4 +51,10 @@ export class ApiService {
   chatWithAdvisor(message: string) {
     return this.http.post<AiResponse>(`${this.apiUrl}/ai/chat`, { message });
   }
+
+  getResources(ticker: string, fundName: string, category: string, type: string) {
+    return this.http.post<AiResponse>(`${this.apiUrl}/ai/resources`, {
+      ticker, fundName, category, type,
+    });
+  }
 }

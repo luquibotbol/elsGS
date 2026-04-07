@@ -47,11 +47,11 @@
   gap: var(--space-sm);
 }
 
-.brand-gs {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--gs-blue-light);
-  letter-spacing: 2px;
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .brand-divider {
@@ -101,14 +101,21 @@
   text-align: center;
   margin-bottom: var(--space-2xl);
   max-width: 600px;
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-xl);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
 }
 
 .hero-title {
   font-size: clamp(2rem, 5vw, 3.2rem);
   font-weight: 700;
   line-height: 1.15;
-  color: var(--text-primary);
+  color: #FFFFFF;
   margin-bottom: var(--space-md);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
 .hero-highlight {
@@ -126,6 +133,7 @@
   line-height: 1.6;
   max-width: 480px;
   margin: 0 auto;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* ── Main Content ── */
@@ -1153,6 +1161,65 @@
 .btn-send svg {
   width: 18px;
   height: 18px;
+}
+
+/* ── Resources / Learn ── */
+.resources-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  background: rgba(5, 10, 20, 0.5);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.resources-selected strong {
+  color: var(--text-primary);
+}
+
+.resources-action {
+  margin-top: var(--space-lg);
+  margin-bottom: var(--space-sm);
+}
+
+.resources-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.resource-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(5, 10, 20, 0.5);
+  border: 1px solid var(--border-subtle);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.resource-link svg {
+  width: 16px;
+  height: 16px;
+  color: var(--gs-blue-light);
+  flex-shrink: 0;
+}
+
+.resource-link:hover {
+  border-color: var(--gs-blue);
+  background: var(--gs-blue-dim);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 153, 204, 0.12);
 }
 
 /* ── Fund Compare ── */

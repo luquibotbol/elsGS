@@ -56,16 +56,18 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   compareTickers: string[] = [];
   compareResult: string = '';
 
+  // Resources
+  resourcesResult: string = '';
+  resourcesTicker: string = '';
+
   private animationFrameId: number = 0;
   private renderer: any;
   private scene: any;
   private camera: any;
   private particles: any;
-  private targetPositions: Float32Array = new Float32Array(0);
+  private gsPositions: Float32Array = new Float32Array(0);
   private scatteredPositions: Float32Array = new Float32Array(0);
   private particleCount = 0;
-  private morphProgress = 0;
-  private morphDirection = 1;
   private clock: any;
 
   constructor(
@@ -123,8 +125,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     // Clock
     this.clock = new THREE.Clock();
 
-    // Generate GS particle positions
-    this.generateGSParticles();
+    // Generate all particle target positions (GS + Names + Scattered)
+    this.generateAllParticleTargets();
 
     // Create particle system
     this.createParticleSystem();
@@ -137,78 +139,84 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Renders "G" and "S" separately onto hidden 2D canvases, then positions
-   * the G on the left side and S on the right side of the screen so
-   * the calculator in the center doesn't cover them.
+   * Helper: Renders text onto a hidden 2D canvas and returns sampled pixel positions.
    */
-  private generateGSParticles(): void {
-    const allPoints: { x: number; y: number }[] = [];
+  private sampleText(
+    text: string, fontSize: number, canvasW: number, canvasH: number,
+    scaleX: number, scaleY: number, offsetX: number, offsetY: number, step: number
+  ): { x: number; y: number }[] {
+    const points: { x: number; y: number }[] = [];
+    const offCanvas = document.createElement('canvas');
+    const ctx = offCanvas.getContext('2d')!;
+    offCanvas.width = canvasW;
+    offCanvas.height = canvasH;
 
-    // Helper: render a single letter and extract points with an X offset
-    const sampleLetter = (letter: string, xOffset: number) => {
-      const offCanvas = document.createElement('canvas');
-      const ctx = offCanvas.getContext('2d')!;
-      const canvasW = 256;
-      const canvasH = 256;
-      offCanvas.width = canvasW;
-      offCanvas.height = canvasH;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.fillStyle = '#FFF';
+    ctx.font = `bold ${fontSize}px IBM Plex Sans, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, canvasW / 2, canvasH / 2);
 
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvasW, canvasH);
-      ctx.fillStyle = '#FFF';
-      ctx.font = 'bold 200px IBM Plex Sans, Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(letter, canvasW / 2, canvasH / 2);
-
-      const imageData = ctx.getImageData(0, 0, canvasW, canvasH);
-      const step = 3;
-
-      for (let y = 0; y < canvasH; y += step) {
-        for (let x = 0; x < canvasW; x += step) {
-          const i = (y * canvasW + x) * 4;
-          if (imageData.data[i] > 128) {
-            allPoints.push({
-              x: (x / canvasW - 0.5) * 4 + xOffset,  // 4 units wide, shifted by offset
-              y: -(y / canvasH - 0.5) * 4,
-            });
-          }
+    const imageData = ctx.getImageData(0, 0, canvasW, canvasH);
+    for (let y = 0; y < canvasH; y += step) {
+      for (let x = 0; x < canvasW; x += step) {
+        const i = (y * canvasW + x) * 4;
+        if (imageData.data[i] > 128) {
+          points.push({
+            x: (x / canvasW - 0.5) * scaleX + offsetX,
+            y: -(y / canvasH - 0.5) * scaleY + offsetY,
+          });
         }
       }
-    };
+    }
+    return points;
+  }
 
-    // G on the left (-5.5), S on the right (+5.5)
-    sampleLetter('G', -5.5);
-    sampleLetter('S', 5.5);
+  /**
+   * Samples a set of points down to targetCount, randomly.
+   */
+  private samplePoints(points: { x: number; y: number }[], targetCount: number): { x: number; y: number }[] {
+    if (points.length <= targetCount) return [...points];
+    const sampled: { x: number; y: number }[] = [];
+    const indices = new Set<number>();
+    while (indices.size < targetCount) {
+      indices.add(Math.floor(Math.random() * points.length));
+    }
+    indices.forEach((i) => sampled.push(points[i]));
+    return sampled;
+  }
+
+  /**
+   * Generates three sets of positions for the particle system:
+   * 1. gsPositions — "G" on left, "S" on right
+   * 2. namesPositions — "Carlos  Balta  Emily  Sarah  Lucas" across the screen
+   * 3. scatteredPositions — random sphere distribution
+   */
+  private generateAllParticleTargets(): void {
+    // === GS Positions ===
+    const gPoints = this.sampleText('G', 200, 256, 256, 4, 4, -5.5, 0, 3);
+    const sPoints = this.sampleText('S', 200, 256, 256, 4, 4, 5.5, 0, 3);
+    const allGS = [...gPoints, ...sPoints];
 
     // Sample to target count
-    const targetCount = Math.min(allPoints.length, 1200);
-    const sampledPoints: { x: number; y: number }[] = [];
+    const targetCount = Math.min(allGS.length, 1200);
+    this.particleCount = targetCount;
 
-    if (allPoints.length <= targetCount) {
-      sampledPoints.push(...allPoints);
-    } else {
-      const indices = new Set<number>();
-      while (indices.size < targetCount) {
-        indices.add(Math.floor(Math.random() * allPoints.length));
-      }
-      indices.forEach((i) => sampledPoints.push(allPoints[i]));
-    }
+    const sampledGS = this.samplePoints(allGS, targetCount);
 
-    this.particleCount = sampledPoints.length;
-    this.targetPositions = new Float32Array(this.particleCount * 3);
-    this.scatteredPositions = new Float32Array(this.particleCount * 3);
+    this.gsPositions = new Float32Array(targetCount * 3);
+    this.scatteredPositions = new Float32Array(targetCount * 3);
 
-    for (let i = 0; i < this.particleCount; i++) {
-      // Target: GS letter shape (flat on Z with slight random depth)
-      this.targetPositions[i * 3] = sampledPoints[i].x;
-      this.targetPositions[i * 3 + 1] = sampledPoints[i].y;
-      this.targetPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+    for (let i = 0; i < targetCount; i++) {
+      this.gsPositions[i * 3] = sampledGS[i].x;
+      this.gsPositions[i * 3 + 1] = sampledGS[i].y;
+      this.gsPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
 
-      // Scattered: random sphere positions
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 3 + Math.random() * 4;
+      const r = 4 + Math.random() * 5;
       this.scatteredPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       this.scatteredPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       this.scatteredPositions[i * 3 + 2] = r * Math.cos(phi);
@@ -304,47 +312,33 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const elapsed = this.clock.getElapsedTime();
     const positions = this.particles.geometry.attributes.position.array;
 
-    // One-time sequence:
-    //   0-2s:   particles scattered (initial state)
-    //   2-4s:   gather into GS letters
+    // Animation sequence:
+    //   0-2s:   particles scattered
+    //   2-4s:   gather into GS
     //   4-9s:   hold GS (5 seconds)
     //   9-11s:  scatter back out
     //   11s+:   stay as floating particles forever
     let morph: number;
     if (elapsed < 2) {
-      // Start scattered
       morph = 0;
     } else if (elapsed < 4) {
-      // Gather into GS
       morph = this.easeInOutCubic((elapsed - 2) / 2);
     } else if (elapsed < 9) {
-      // Hold GS for 5 seconds
       morph = 1;
     } else if (elapsed < 11) {
-      // Scatter back out
       morph = 1 - this.easeInOutCubic((elapsed - 9) / 2);
     } else {
-      // Stay as particles forever
       morph = 0;
     }
 
     // Interpolate positions
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
-      // Add gentle per-particle oscillation when formed
       const wobble = morph * Math.sin(elapsed * 0.8 + i * 0.05) * 0.03;
 
-      positions[i3] =
-        this.scatteredPositions[i3] +
-        (this.targetPositions[i3] - this.scatteredPositions[i3]) * morph +
-        wobble;
-      positions[i3 + 1] =
-        this.scatteredPositions[i3 + 1] +
-        (this.targetPositions[i3 + 1] - this.scatteredPositions[i3 + 1]) * morph +
-        wobble;
-      positions[i3 + 2] =
-        this.scatteredPositions[i3 + 2] +
-        (this.targetPositions[i3 + 2] - this.scatteredPositions[i3 + 2]) * morph;
+      positions[i3] = this.scatteredPositions[i3] + (this.gsPositions[i3] - this.scatteredPositions[i3]) * morph + wobble;
+      positions[i3 + 1] = this.scatteredPositions[i3 + 1] + (this.gsPositions[i3 + 1] - this.scatteredPositions[i3 + 1]) * morph + wobble;
+      positions[i3 + 2] = this.scatteredPositions[i3 + 2] + (this.gsPositions[i3 + 2] - this.scatteredPositions[i3 + 2]) * morph;
     }
 
     this.particles.geometry.attributes.position.needsUpdate = true;
@@ -603,6 +597,33 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         this.errorMessage = 'Failed to compare funds. Check your API key.';
+        this.aiLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  getResources(): void {
+    if (!this.selectedFund) {
+      this.errorMessage = 'Select a fund first.';
+      return;
+    }
+    this.aiLoading = true;
+    this.resourcesResult = '';
+    this.resourcesTicker = this.selectedFund.ticker;
+    this.apiService.getResources(
+      this.selectedFund.ticker,
+      this.selectedFund.name,
+      this.selectedFund.category,
+      this.selectedFund.type
+    ).subscribe({
+      next: (res) => {
+        this.resourcesResult = res.content;
+        this.aiLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.errorMessage = 'Failed to load resources. Check your API key.';
         this.aiLoading = false;
         this.cdr.detectChanges();
       },

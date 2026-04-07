@@ -63,4 +63,18 @@ public class AiController {
                 mutualFundService.getAllFunds());
         return new AiResponse(result);
     }
+
+    /**
+     * POST /api/ai/resources
+     * AI-curated news, videos, and research resources for a specific fund/ETF.
+     */
+    @PostMapping("/resources")
+    public AiResponse getResources(@RequestBody AiResourcesRequest request) {
+        String result = aiService.getResources(
+                request.getTicker(),
+                request.getFundName(),
+                request.getCategory(),
+                request.getType());
+        return new AiResponse(result);
+    }
 }

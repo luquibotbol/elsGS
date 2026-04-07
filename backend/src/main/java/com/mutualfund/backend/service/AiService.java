@@ -120,6 +120,38 @@ public class AiService {
     }
 
     /**
+     * Generates curated news topics and educational video recommendations
+     * for a specific fund or ETF.
+     */
+    public String getResources(String ticker, String fundName, String category, String type) {
+        String systemPrompt = "You are a Goldman Sachs research analyst AI. Given a specific " + type + ", " +
+                "generate curated learning resources: news topics to follow and educational videos to watch.\n\n" +
+                "FORMATTING RULES (you MUST follow these exactly):\n" +
+                "- Use exactly these ## sections in this order:\n" +
+                "  ## Key News Topics\n" +
+                "  ## Recommended Videos\n" +
+                "  ## Research Terms\n" +
+                "  ## What to Watch For\n" +
+                "- Under ## Key News Topics: list 4-5 specific, current news topics related to this fund with a brief " +
+                "description of why each matters. Use - bullet points.\n" +
+                "- Under ## Recommended Videos: list 4-5 specific YouTube video topics to search for (e.g. " +
+                "'\"VFIAX vs VOO comparison 2025\"', '\"S&P 500 index fund explained\"'). Put the exact search query in " +
+                "double quotes and briefly explain what the viewer will learn. Use - bullet points.\n" +
+                "- Under ## Research Terms: list 5-6 key financial terms the investor should understand for this " +
+                "specific fund type. Use - bullet points with a one-line definition each.\n" +
+                "- Under ## What to Watch For: list 3-4 market indicators or events that specifically affect this fund. " +
+                "Use - bullet points.\n" +
+                "- Use **bold** for fund tickers, search queries, and key terms\n" +
+                "- Do NOT use ### sub-headers, only ## headers";
+
+        String userPrompt = String.format(
+                "Generate learning resources for:\n- Ticker: %s\n- Name: %s\n- Category: %s\n- Type: %s",
+                ticker, fundName, category, type);
+
+        return callOpenAI(systemPrompt, userPrompt);
+    }
+
+    /**
      * AI investment advisor chat — answers questions about mutual funds and investing.
      */
     public String chat(String userMessage, List<MutualFund> funds) {
