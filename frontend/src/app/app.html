@@ -145,16 +145,32 @@
       <div class="invest-section">
         <span class="invest-label">Ready to invest in {{ investmentResult.ticker }}?</span>
         <div class="invest-links">
-          <a class="invest-btn" [href]="'https://robinhood.com/stocks/' + investmentResult.ticker" target="_blank" rel="noopener">
+          <!-- Robinhood: ETFs only — mutual funds use different internal tickers on Robinhood -->
+          <a class="invest-btn" *ngIf="selectedFund?.type === 'ETF'"
+             [href]="'https://robinhood.com/us/en/stocks/' + investmentResult.ticker + '/'"
+             target="_blank" rel="noopener">
             <span class="invest-btn-name">Robinhood</span>
           </a>
-          <a class="invest-btn" [href]="'https://www.fidelity.com/fund-screener/evaluator.shtml#/ticker/' + investmentResult.ticker" target="_blank" rel="noopener">
+          <!-- Fidelity: same URL works for both ETFs and mutual funds -->
+          <a class="invest-btn"
+             [href]="'https://digital.fidelity.com/prgw/digital/research/quote/dashboard/summary?symbol=' + investmentResult.ticker"
+             target="_blank" rel="noopener">
             <span class="invest-btn-name">Fidelity</span>
           </a>
-          <a class="invest-btn" [href]="'https://www.schwab.com/research/mutual-funds/quotes/summary/' + investmentResult.ticker" target="_blank" rel="noopener">
+          <!-- Schwab: different path for ETFs vs mutual funds -->
+          <a class="invest-btn"
+             [href]="selectedFund?.type === 'ETF'
+               ? 'https://www.schwab.com/research/etfs/quotes/summary/' + investmentResult.ticker
+               : 'https://www.schwab.com/research/mutual-funds/quotes/summary/' + investmentResult.ticker"
+             target="_blank" rel="noopener">
             <span class="invest-btn-name">Schwab</span>
           </a>
-          <a class="invest-btn" [href]="'https://investor.vanguard.com/investment-products/mutual-funds/profile/' + investmentResult.ticker" target="_blank" rel="noopener">
+          <!-- Vanguard: different path for ETFs vs mutual funds -->
+          <a class="invest-btn"
+             [href]="selectedFund?.type === 'ETF'
+               ? 'https://investor.vanguard.com/investment-products/etfs/profile/' + investmentResult.ticker
+               : 'https://investor.vanguard.com/investment-products/mutual-funds/profile/' + investmentResult.ticker"
+             target="_blank" rel="noopener">
             <span class="invest-btn-name">Vanguard</span>
           </a>
         </div>
